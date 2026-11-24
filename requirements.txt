@@ -1,0 +1,5 @@
+# balconysolar runs on the Python standard library.
+# There are no runtime dependencies.
+#
+# Optional, for a faster local check:
+#   python -m unittest discover -s tests -t .

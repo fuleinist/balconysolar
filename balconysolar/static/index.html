@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>balconysolar — size a balcony panel before you buy</title>
+<meta name="description" content="A balcony solar sizer for renters. Real hourly weather, horizon shading, self-consumption and a payback range." />
+<link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" width="26" height="26"><rect x="4" y="13" width="24" height="15" rx="2" fill="#1d2320"/><path d="M6 20h20M12 13v15M20 13v15" stroke="#f2b134" stroke-width="1.4"/><circle cx="16" cy="7" r="4" fill="#f2b134"/></svg>
+      </span>
+      <div>
+        <strong>balconysolar</strong>
+        <span class="brand-sub">panel before purchase</span>
+      </div>
+    </div>
+    <div class="topbar-meta">
+      <span class="pill" id="source-pill">Sydney default</span>
+      <button class="ghost" id="btn-scenarios">Saved</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap layout">
+  <section class="panel form-panel" aria-label="Balcony inputs">
+    <div class="panel-head">
+      <h1>Size the panel</h1>
+      <p>Answer seven questions. The tool returns a yield, a bill saving and a payback range.</p>
+    </div>
+
+    <form id="size-form" autocomplete="off">
+      <fieldset>
+        <legend><span class="step">1</span> Location</legend>
+        <div class="row">
+          <label class="field grow">
+            <span>Suburb or city</span>
+            <input type="text" id="place" placeholder="e.g. Chatswood, Sydney" />
+          </label>
+          <button type="button" class="ghost small" id="btn-search">Find</button>
+        </div>
+        <div class="row">
+          <label class="field"><span>Latitude</span><input type="number" id="lat" value="-33.7969" step="0.0001" /></label>
+          <label class="field"><span>Longitude</span><input type="number" id="lon" value="151.1833" step="0.0001" /></label>
+        </div>
+        <p class="hint" id="search-hint">Defaults to Chatswood, Sydney. Search uses the Open-Meteo geocoder.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend><span class="step">2</span> Balcony</legend>
+        <div class="balcony-row">
+          <div class="compass-wrap">
+            <svg id="compass" viewBox="0 0 120 120" width="112" height="112" role="img" aria-label="Balcony orientation">
+              <circle cx="60" cy="60" r="52" fill="#fbf7ef" stroke="#d8d2c4" />
+              <g stroke="#b9b2a2" stroke-width="1">
+                <line x1="60" y1="12" x2="60" y2="22" /><line x1="60" y1="98" x2="60" y2="108" />
+                <line x1="12" y1="60" x2="22" y2="60" /><line x1="98" y1="60" x2="108" y2="60" />
+              </g>
+              <text x="60" y="10" text-anchor="middle" font-size="9" fill="#6a756f">N</text>
+              <text x="60" y="118" text-anchor="middle" font-size="9" fill="#6a756f">S</text>
+              <text x="112" y="63" text-anchor="middle" font-size="9" fill="#6a756f">E</text>
+              <text x="8" y="63" text-anchor="middle" font-size="9" fill="#6a756f">W</text>
+              <g id="compass-needle" transform="rotate(0 60 60)">
+                <path d="M60 22 L68 60 L60 54 L52 60 Z" fill="#e08b1f" />
+                <rect x="56" y="60" width="8" height="30" rx="3" fill="#1d2320" />
+              </g>
+            </svg>
+            <output id="orientation-out">0° N</output>
+          </div>
+          <div class="compass-controls">
+            <label class="field">
+              <span>Panel direction <em>(degrees from north)</em></span>
+              <input type="range" id="azimuth" min="0" max="359" step="1" value="0" />
+            </label>
+            <label class="field">
+              <span>Panel tilt <em>(90° = vertical rail mount)</em></span>
+              <input type="range" id="tilt" min="0" max="90" step="1" value="90" />
+              <output id="tilt-out">90°</output>
+            </label>
+            <div class="row">
+              <label class="field"><span>Rail height (m)</span><input type="number" id="rail" value="1.1" step="0.1" min="0" /></label>
+              <label class="field"><span>Floor</span><input type="number" id="floor" value="3" step="1" min="0" /></label>
+            </div>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend><span class="step">3</span> What blocks the sun</legend>
+        <p class="hint">Add the edges you can see from the balcony. Direction is where you look. Height is the top of the edge above eye level.</p>
+        <div id="obstruction-list" class="obstruction-list"></div>
+        <div class="row obstruction-add">
+          <label class="field small"><span>Direction</span><input type="number" id="obs-az" value="90" min="0" max="359" /></label>
+          <label class="field small"><span>Height (°)</span><input type="number" id="obs-el" value="20" min="0" max="89" /></label>
+          <label class="field small"><span>Width (°)</span><input type="number" id="obs-w" value="40" min="1" max="180" /></label>
+          <button type="button" class="ghost small" id="btn-add-obs">Add edge</button>
+        </div>
+        <div class="preset-row">
+          <button type="button" class="chip" data-preset="open">Open sky</button>
+          <button type="button" class="chip" data-preset="opposite">Building opposite</button>
+          <button type="button" class="chip" data-preset="side">Wall to the west</button>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend><span class="step">4</span> Panel and inverter</legend>
+        <label class="field">
+          <span>Panel</span>
+          <select id="panel"></select>
+        </label>
+        <div class="row">
+          <label class="field"><span>Peak power (W)</span><input type="number" id="wp" value="400" min="50" max="2000" step="10" /></label>
+          <label class="field"><span>Area (m²)</span><input type="number" id="area" value="1.95" step="0.05" min="0.2" /></label>
+        </div>
+        <label class="field">
+          <span>Inverter</span>
+          <select id="inverter"></select>
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend><span class="step">5</span> Home and money</legend>
+        <div class="row">
+          <label class="field"><span>Daily use (kWh)</span><input type="number" id="daily" value="8" step="0.5" min="0.5" /></label>
+          <label class="field"><span>Import tariff (A$/kWh)</span><input type="number" id="import" value="0.32" step="0.01" min="0" /></label>
+        </div>
+        <div class="row">
+          <label class="field"><span>Feed-in (A$/kWh)</span><input type="number" id="export" value="0.05" step="0.01" min="0" /></label>
+          <label class="field"><span>Cost installed (A$)</span><input type="number" id="capex" value="780" step="10" min="0" /></label>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="allow-export" checked />
+          <span class="track"><span class="dot"></span></span>
+          <span>Export surplus to the grid</span>
+        </label>
+      </fieldset>
+
+      <div class="actions">
+        <button type="submit" class="primary" id="btn-calc">Calculate</button>
+        <button type="button" class="ghost" id="btn-save">Save scenario</button>
+        <button type="button" class="ghost" id="btn-print" disabled>Print brief</button>
+      </div>
+      <p class="hint" id="form-status"></p>
+    </form>
+  </section>
+
+  <section class="results" aria-live="polite" aria-label="Result">
+    <div class="hero card" id="hero">
+      <div class="hero-top">
+        <span class="label">Payback</span>
+        <span class="badge" id="hero-badge">estimate</span>
+      </div>
+      <div class="hero-value"><span id="payback">—</span><span class="unit">years</span></div>
+      <div class="hero-range" id="payback-range">Enter a balcony and press Calculate</div>
+      <div class="hero-split">
+        <div><span class="k">Annual yield</span><strong id="annual">—</strong><span class="u">kWh</span></div>
+        <div><span class="k">Bill saving</span><strong id="savings">—</strong><span class="u">A$/yr</span></div>
+        <div><span class="k">Used at home</span><strong id="selfuse">—</strong><span class="u">%</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>Monthly yield</h2>
+        <span class="muted" id="chart-note">kWh per month</span>
+      </div>
+      <div id="chart-monthly" class="chart"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>A sunny day</h2>
+        <span class="muted">mean kW by hour</span>
+      </div>
+      <div id="chart-day" class="chart"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>Where the energy goes</h2>
+        <span class="muted" id="loss-note">kWh per year</span>
+      </div>
+      <div id="loss-bars" class="loss-bars"></div>
+      <div class="split-row" id="split-legend"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>Assumptions</h2>
+        <span class="badge soft" id="data-badge">—</span>
+      </div>
+      <ul class="notes" id="assumptions"></ul>
+      <div class="pvgis-row">
+        <button type="button" class="ghost small" id="btn-pvgis" disabled>Compare with PVGIS</button>
+        <span class="muted" id="pvgis-out"></span>
+      </div>
+    </div>
+
+    <div class="card saved-card" id="saved-card" hidden>
+      <div class="card-head">
+        <h2>Saved scenarios</h2>
+        <button class="ghost small" id="btn-close-saved">Close</button>
+      </div>
+      <ul class="saved-list" id="saved-list"></ul>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap footer">
+  <p>Built on the Open-Meteo Archive API and the PVGIS reference model. Estimates only — not electrical advice.</p>
+</footer>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
